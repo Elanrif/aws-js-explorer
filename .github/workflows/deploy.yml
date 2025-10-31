@@ -1,34 +1,48 @@
 name: Deploy to AWS
 
 on:
-  push:
-    branches:
-      - main # pour prod
-      - develop # pour staging
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment: prod or staging (required)."
+        required: true
+        default: ""
 
 jobs:
-  deploy-staging:
-    if: github.ref == 'refs/heads/develop'
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - run: |
-          aws s3 sync . s3://amazon-s3-demo-bucket-staging --delete --exclude ".git/*" --exclude ".github/*"
 
-  deploy-prod:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: aws-actions/configure-aws-credentials@v2
+      - name: Determine target
+        id: target
+        run: |
+          env="${{ github.event.inputs.environment }}"
+          echo "Chosen environment: $env"
+          if [ -z "$env" ]; then
+            echo "No environment provided. Use 'staging' or 'prod'."
+            exit 1
+          fi
+
+          if [ "$env" = "prod" ]; then
+            echo "target=prod" >> $GITHUB_OUTPUT
+            echo "bucket=amazon-s3-demo-bucket-prod" >> $GITHUB_OUTPUT
+          elif [ "$env" = "staging" ]; then
+            echo "target=staging" >> $GITHUB_OUTPUT
+            echo "bucket=amazon-s3-demo-bucket-staging" >> $GITHUB_OUTPUT
+          else
+            echo "Unsupported environment: $env"
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - run: |
-          aws s3 sync . s3://amazon-s3-demo-bucket-prod --delete --exclude ".git/*" --exclude ".github/*"
+
+      - name: Sync to S3
+        run: |
+          echo "Deploying to ${{ steps.target.outputs.target }} -> s3://${{ steps.target.outputs.bucket }}"
+          aws s3 sync . s3://${{ steps.target.outputs.bucket }} --delete --exclude ".git/*" --exclude ".github/*"
