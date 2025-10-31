@@ -46,7 +46,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      - name: Download user files from S3 (preserve uploads/)
+        run: |
+          echo "Attempting to download existing user files from s3://${{ steps.target.outputs.bucket }}/uploads to ./uploads"
+          # Don't fail the workflow if the prefix doesn't exist
+          aws s3 sync s3://${{ steps.target.outputs.bucket }}/uploads ./uploads || true
+
       - name: Sync to S3
         run: |
           echo "Deploying to ${{ steps.target.outputs.target }} -> s3://${{ steps.target.outputs.bucket }}"
-          aws s3 sync . s3://${{ steps.target.outputs.bucket }} --delete --exclude ".git/*" --exclude ".github/*"
+          aws s3 sync . s3://${{ steps.target.outputs.bucket }} --delete --exclude "canalPlus/*" --exclude ".git/*" --exclude ".github/*"
