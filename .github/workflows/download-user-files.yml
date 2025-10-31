@@ -1,0 +1,66 @@
+name: Download entire S3 bucket
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (choose one)."
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - prod
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Determine target
+        id: target
+        run: |
+          env="${{ github.event.inputs.environment }}"
+          echo "Chosen environment: $env"
+          if [ -z "$env" ]; then
+            echo "No environment provided. Use 'staging' or 'prod'."
+            exit 1
+          fi
+
+          if [ "$env" = "prod" ]; then
+            echo "target=prod" >> $GITHUB_OUTPUT
+            echo "bucket=amazon-s3-demo-bucket-prod" >> $GITHUB_OUTPUT
+          elif [ "$env" = "staging" ]; then
+            echo "target=staging" >> $GITHUB_OUTPUT
+            echo "bucket=amazon-s3-demo-bucket-staging" >> $GITHUB_OUTPUT
+          else
+            echo "Unsupported environment: $env"
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Sync entire bucket locally
+        run: |
+          echo "Syncing full bucket s3://${{ steps.target.outputs.bucket }} -> ./s3_snapshot"
+          mkdir -p ./s3_snapshot
+          aws s3 sync s3://${{ steps.target.outputs.bucket }} ./s3_snapshot || true
+
+      - name: Create archive and upload artifact
+        run: |
+          ts=$(date +%Y%m%d%H%M%S)
+          archive="s3-bucket-${{ steps.target.outputs.target }}-${ts}.tar.gz"
+          tar -czf "$archive" -C s3_snapshot . || true
+          ls -lah "$archive" || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: s3-bucket-${{ steps.target.outputs.target }}
+          path: s3-bucket-${{ steps.target.outputs.target }}-*.tar.gz
