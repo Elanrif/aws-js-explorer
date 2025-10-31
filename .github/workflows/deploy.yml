@@ -30,10 +30,10 @@ jobs:
 
           if [ "$env" = "prod" ]; then
             echo "target=prod" >> $GITHUB_OUTPUT
-            echo "bucket=amazon-s3-demo-bucket-prod" >> $GITHUB_OUTPUT
+            echo "bucket=dam-prod.elanrif.com" >> $GITHUB_OUTPUT
           elif [ "$env" = "staging" ]; then
             echo "target=staging" >> $GITHUB_OUTPUT
-            echo "bucket=amazon-s3-demo-bucket-staging" >> $GITHUB_OUTPUT
+            echo "bucket=dam-staging.elanrif.com" >> $GITHUB_OUTPUT
           else
             echo "Unsupported environment: $env"
             exit 1
@@ -45,13 +45,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
-      - name: Download user files from S3 (preserve uploads/)
-        run: |
-          echo "Attempting to download existing user files from s3://${{ steps.target.outputs.bucket }}/uploads to ./uploads"
-          # Don't fail the workflow if the prefix doesn't exist
-          aws s3 sync s3://${{ steps.target.outputs.bucket }}/uploads ./uploads || true
-
+          
       - name: Sync to S3
         run: |
           echo "Deploying to ${{ steps.target.outputs.target }} -> s3://${{ steps.target.outputs.bucket }}"
