@@ -49,4 +49,4 @@ jobs:
       - name: Sync to S3
         run: |
           echo "Deploying to ${{ steps.target.outputs.target }} -> s3://${{ steps.target.outputs.bucket }}"
-          aws s3 sync . s3://${{ steps.target.outputs.bucket }} --delete --exclude "canalPlus/*" --exclude ".git/*" --exclude ".github/*"
+          aws s3 sync . s3://${{ steps.target.outputs.bucket }} --delete --exclude "canalPlus/*" --exclude "uploads/*" --exclude ".git/*" --exclude ".github/*"
